@@ -4,7 +4,7 @@
 
 departamento: "IT - IA"
 # ID de la carpeta "IT - IA" en Drive (la parte final de su URL)
-drive_root_id: "https://drive.google.com/drive/folders/1P54ATjIJeXrbsF8HIdtqUKTpYUneb_4m?hl=es"
+drive_root_id: "1P54ATjIJeXrbsF8HIdtqUKTpYUneb_4m"
 
 # Responsables de la configuración del repo (sync/, .github/, CLAUDE.md…)
 admins: ["@alimerka/it-ia-admins"]

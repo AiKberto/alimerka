@@ -1,5 +1,7 @@
 # Instrucciones para Claude en este repositorio
 
+#stexto de prueba borrar 
+
 ## Qué es este repo
 Réplica del árbol de Google Drive del departamento **IT - IA**, solo con código y configuración. Las rutas y nombres de carpetas son **exactamente los de Drive** (con espacios, tildes y numeraciones como `0111_Proyectos`). Los documentos (PDF, Docs, Sheets) no están aquí.
 
