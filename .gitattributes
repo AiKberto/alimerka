@@ -1,0 +1,3 @@
+# Guardar los ficheros byte a byte, sin convertir finales de línea, para que el
+# contenido en Git y en Drive sea idéntico (la verificación compara hashes).
+* -text

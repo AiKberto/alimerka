@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Bloquea commits con posibles secretos. Activar con:  git config core.hooksPath .githooks
+set -u
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "✖ gitleaks no está instalado: no se puede comprobar si hay secretos." >&2
+  echo "  Instálalo (https://github.com/gitleaks/gitleaks/releases) y vuelve a intentarlo." >&2
+  exit 1
+fi
+
+config_args=()
+[ -f .gitleaks.toml ] && config_args=(--config .gitleaks.toml)
+
+# gitleaks >= 8.19: "git --pre-commit"; versiones anteriores: "protect"
+if gitleaks git --help >/dev/null 2>&1; then
+  gitleaks git --pre-commit --staged --redact --no-banner "${config_args[@]}"
+else
+  gitleaks protect --staged --redact --no-banner "${config_args[@]}"
+fi
+status=$?
+
+if [ $status -ne 0 ]; then
+  echo "" >&2
+  echo "✖ Commit bloqueado: hay posibles secretos (ver arriba)." >&2
+  echo "  Muévelos a .env o al gestor de secretos y usa config/*.example.yml como plantilla." >&2
+fi
+exit $status

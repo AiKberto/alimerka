@@ -1,0 +1,9 @@
+# Reglas de gitleaks: las de serie + excepciones del departamento.
+title = "alimerka"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Ficheros de ejemplo sin secretos reales"
+paths = ['''(^|/)config/.*\.example\.(yml|yaml|json)$''', '''(^|/)\.env\.example$''']

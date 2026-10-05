@@ -1,0 +1,80 @@
+# Modo B ("Drive manda"): copia cada hora a Git el código editado en Drive.
+name: Drive → Git (Modo B)
+
+on:
+  schedule:
+    - cron: "5 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Simulación (no escribe nada)"
+        type: boolean
+        default: false
+
+# Nunca a la vez que Git → Drive
+concurrency:
+  group: drive-sync
+  cancel-in-progress: false
+
+env:
+  HERRAMIENTA_REPO: alimerka/drive-git-sync
+  HERRAMIENTA_REF: v0.1.0
+
+jobs:
+  sync:
+    runs-on: [self-hosted, drive-sync]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: repo
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_BOT_TOKEN }}   # el bot tiene bypass de la protección de main
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.HERRAMIENTA_REPO }}
+          ref: ${{ env.HERRAMIENTA_REF }}
+          path: herramienta
+          token: ${{ secrets.SYNC_BOT_TOKEN }}
+
+      - name: Preparar
+        env:
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+        run: |
+          python3 -m pip install --quiet --disable-pip-version-check -r herramienta/requirements.txt
+          printf '%s' "$GOOGLE_SA_JSON" > "$RUNNER_TEMP/sa.json"
+          git -C repo config user.name "drive-sync-bot"
+          git -C repo config user.email "drive-sync-bot@alimerka.es"
+          git -C repo config core.longpaths true
+
+      - name: Sincronizar Drive → Git
+        working-directory: herramienta
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: >
+          python3 -m sync.drive_a_git --repo ../repo
+          --informe "$RUNNER_TEMP/informe-drive-a-git.csv"
+          ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      - name: Subir commits
+        if: ${{ !inputs.dry_run }}
+        working-directory: repo
+        run: |
+          for intento in 1 2 3; do
+            git pull --rebase --quiet origin main && git push origin HEAD:main && exit 0
+            sleep $((intento * 10))
+          done
+          echo "::error::No se pudo subir tras 3 intentos"; exit 1
+
+      - name: Guardar informe
+        if: always()
+        uses: actions/upload-artifact@v3   # v4 no está soportada en GHES
+        with:
+          name: informe-drive-a-git
+          path: ${{ runner.temp }}/informe-drive-a-git.csv
+          if-no-files-found: ignore
+
+      - name: Limpiar credenciales
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"

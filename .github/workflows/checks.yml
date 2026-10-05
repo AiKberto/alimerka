@@ -1,0 +1,69 @@
+# Comprobaciones obligatorias (marcarlas como "required" en la protección de main).
+name: Comprobaciones
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  HERRAMIENTA_REPO: alimerka/drive-git-sync
+  HERRAMIENTA_REF: v0.1.0
+
+jobs:
+  comprobar:
+    runs-on: [self-hosted, drive-sync]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: repo
+          fetch-depth: 0
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.HERRAMIENTA_REPO }}
+          ref: ${{ env.HERRAMIENTA_REF }}
+          path: herramienta
+          token: ${{ secrets.SYNC_BOT_TOKEN }}
+
+      - name: Rango de commits
+        id: rango
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "base=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+            echo "head=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+            echo "actor=${{ github.event.pull_request.user.login }}" >> "$GITHUB_OUTPUT"
+            echo "extra=--merge-base" >> "$GITHUB_OUTPUT"
+          else
+            echo "base=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+            echo "head=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            echo "actor=${{ github.actor }}" >> "$GITHUB_OUTPUT"
+            echo "extra=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Secretos (gitleaks)
+        working-directory: repo
+        run: |
+          rango="${{ steps.rango.outputs.base }}..${{ steps.rango.outputs.head }}"
+          case "${{ steps.rango.outputs.base }}" in 0000000*) rango="${{ steps.rango.outputs.head }}";; esac
+          if gitleaks git --help >/dev/null 2>&1; then
+            gitleaks git --no-banner --redact --config .gitleaks.toml --log-opts="$rango" .
+          else
+            gitleaks detect --no-banner --redact --config .gitleaks.toml --log-opts="$rango" --source .
+          fi
+
+      - name: Instalar herramienta
+        run: python3 -m pip install --quiet --disable-pip-version-check -r herramienta/requirements.txt
+
+      - name: Rutas permitidas según el modo de cada proyecto
+        if: ${{ !startsWith(steps.rango.outputs.base, '0000000') }}
+        working-directory: herramienta
+        run: >
+          python3 -m sync.comprobar_rutas --repo ../repo
+          --base "${{ steps.rango.outputs.base }}" --head "${{ steps.rango.outputs.head }}"
+          --actor "${{ steps.rango.outputs.actor }}" ${{ steps.rango.outputs.extra }}
+
+      - name: CODEOWNERS al día con proyectos.yml
+        working-directory: herramienta
+        run: python3 -m sync.codeowners --repo ../repo --comprobar

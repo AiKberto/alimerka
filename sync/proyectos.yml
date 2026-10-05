@@ -1,0 +1,33 @@
+# Configuración de la sincronización Drive <-> Git del departamento.
+# Cualquier cambio aquí pasa por PR y lo aprueban los administradores (CODEOWNERS).
+# Después de editar, regenerar CODEOWNERS:  python -m sync.codeowners --repo .
+
+departamento: "IT - IA"
+# ID de la carpeta "IT - IA" en Drive (la parte final de su URL)
+drive_root_id: "https://drive.google.com/drive/folders/1P54ATjIJeXrbsF8HIdtqUKTpYUneb_4m?hl=es"
+
+# Responsables de la configuración del repo (sync/, .github/, CLAUDE.md…)
+admins: ["@alimerka/it-ia-admins"]
+
+# Rutas relativas a la carpeta del departamento, exactamente como en Drive.
+# modo A = "Git manda" (se edita en Git; main se copia a Drive)
+# modo B = "Drive manda" (se edita en Drive; se copia a Git cada hora)
+proyectos:
+  - ruta: "0111_Proyectos/01_IA_AlimerkAI"
+    modo: A
+    responsables: ["@alimerka/it-ia-alimerkai"]
+  - ruta: "0111_Proyectos/02_AMKash"
+    modo: B
+    responsables: ["@alimerka/it-ia-amkash"]
+
+# Qué se considera código (extensión o nombre exacto)
+extensiones: [.py, .ipynb, .sql, .yml, .yaml, .json, .toml, .cfg, .ini, .html, .css, .js, .ts,
+              .sh, .ps1, .bat, .r, .md, requirements.txt, Dockerfile]
+
+# Nunca se replican (aunque tengan extensión de código)
+excluir: ["**/.env", "**/*.key", "**/*.pem", "**/__pycache__/**", "**/.ipynb_checkpoints/**", "**/node_modules/**"]
+
+tamano_max_mb: 5
+
+# Si una sincronización Drive -> Git fuera a borrar más ficheros que esto, se cancela
+max_borrados: 25

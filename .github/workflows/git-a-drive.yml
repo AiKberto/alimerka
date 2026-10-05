@@ -1,0 +1,72 @@
+# Modo A ("Git manda"): copia a Drive el código que entra en main.
+name: Git → Drive (Modo A)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      todo:
+        description: "Reconciliar todos los ficheros de proyectos en Modo A"
+        type: boolean
+        default: true
+      dry_run:
+        description: "Simulación (no escribe nada)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: drive-sync
+  cancel-in-progress: false
+
+env:
+  HERRAMIENTA_REPO: alimerka/drive-git-sync
+  HERRAMIENTA_REF: v0.1.0
+
+jobs:
+  publicar:
+    # Los commits del bot son de proyectos en Modo B: no hay nada que publicar
+    if: github.actor != 'drive-sync-bot'
+    runs-on: [self-hosted, drive-sync]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: repo
+          fetch-depth: 0
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.HERRAMIENTA_REPO }}
+          ref: ${{ env.HERRAMIENTA_REF }}
+          path: herramienta
+          token: ${{ secrets.SYNC_BOT_TOKEN }}
+
+      - name: Preparar
+        env:
+          GOOGLE_SA_JSON: ${{ secrets.GOOGLE_SA_JSON }}
+        run: |
+          python3 -m pip install --quiet --disable-pip-version-check -r herramienta/requirements.txt
+          printf '%s' "$GOOGLE_SA_JSON" > "$RUNNER_TEMP/sa.json"
+
+      - name: Publicar Git → Drive
+        working-directory: herramienta
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: >
+          python3 -m sync.git_a_drive --repo ../repo --head "${{ github.sha }}"
+          ${{ (github.event_name == 'workflow_dispatch' && inputs.todo) && '--todo' || format('--base {0}', github.event.before) }}
+          ${{ inputs.dry_run && '--dry-run' || '' }}
+          --informe "$RUNNER_TEMP/informe-git-a-drive.csv"
+
+      - name: Guardar informe
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: informe-git-a-drive
+          path: ${{ runner.temp }}/informe-git-a-drive.csv
+          if-no-files-found: ignore
+
+      - name: Limpiar credenciales
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"
