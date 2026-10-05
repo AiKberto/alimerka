@@ -1,1 +1,0 @@
-print("Prueba de sincronización en Modo B exitosa")
