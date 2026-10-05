@@ -1,4 +1,4 @@
-# Cambio de prueba realizado a las 13:10
+# Cambio de prueba realizado a las 13:32
 # Instrucciones para Claude en este repositorio
 
 ## Qué es este repo
